@@ -9,17 +9,30 @@ while (AppIsOn)
 {
     while (true)
     {
-        Console.WriteLine("Сделайте выбор\n" +
+        Console.WriteLine("\n\tСделайте выбор\n" +
         "1 - Вывести список пользователей из базы\n" +
         "2 - Добавить пользователя\n" +
         "3 - Удалить пользователя\n" +
-        "3 - Изменить баланс пользователя\n" +
+        "4 - Изменить баланс пользователя\n" +
+        "5 - Добавить 5 тестовых пользователей для проверки программы (Даже не выбрать повторно)\n" +
         "0 - Выход");
 
-        if (int.TryParse(Console.ReadLine(), out input))
+        if (int.TryParse(Console.ReadLine(), out input) && input >= 0 && input <= 5)
             break;
         else
             Console.WriteLine("Ошибка ввода");
+    }
+
+    if(input == 5)
+    {
+        List<User> testList = new List<User>
+        {
+            new User(1, "Василий", "Пупкин", "Иванович", 33, "Клиент", "UA123456789012345678901234567", 330000),
+            new User(2, "Петр", "Бубкин", "Степанович", 33, "Клиент", "UA123456789012345678901234568", 253000),
+            new User(3, "John", "Wick", null, 33, "Клиент", "UA123456789012345678901234569", 500000)
+        };
+
+        WriteToDBTable(testList);
     }
 
     switch ((MainMenu)input)
@@ -28,9 +41,11 @@ while (AppIsOn)
             AppIsOn = false;
             break;
 
+
         case MainMenu.ExportUsers:
             PrintList(GetListFromDBTable());
             break;
+
 
         case MainMenu.AddUser:
             Console.WriteLine("\nВведите Имя: ");
@@ -69,17 +84,19 @@ while (AppIsOn)
             }
 
             if (AddUserToDBTable(new User(GetBiggestId() + 1, firstName, lastName, patronomic, age, role, account, balance)))
+            {
+                users = GetListFromDBTable();
                 Console.WriteLine("Пользователь добавлен");
+            }                
             else
                 Console.WriteLine("Ошибка при добавлении, пользователь не добавлен в базу");
             break;
 
-        case MainMenu.RemoveUser:
-            Console.WriteLine("Введите Id пользователя для удаления из базы");
 
+        case MainMenu.RemoveUser:
             while (true)
             {
-                Console.WriteLine("\nВведите Возраст: ");
+                Console.WriteLine("Введите Id пользователя для удаления из базы");
                 if (int.TryParse(Console.ReadLine(), out input))
                     break;
                 else
@@ -87,22 +104,80 @@ while (AppIsOn)
             }
 
             if (RemoveUserFromDBTable(input))
+            {
+                users = GetListFromDBTable();
                 Console.WriteLine("Пользователь удален");
+            }                
             else
                 Console.WriteLine("Ошибка при удалении, пользователь не удален");
-
             break;
+
 
         case MainMenu.ChangeBalance:
-            
+            Console.WriteLine("Введите Id пользователя, баланс которого хотите изменить");
+            while (true)
+            {
+                Console.WriteLine("Введите Id пользователя, баланс которого хотите изменить");
+                if (int.TryParse(Console.ReadLine(), out input))
+                    break;
+                else
+                    Console.WriteLine("Ошибка ввода");
+            }
+            string userToString = GetUserToString(input, users);
+            Console.WriteLine(userToString);
+            if (userToString[0] == 'I')
+            {
+                while (true)
+                {
+                    Console.WriteLine("Введите новую сумму");
+                    if (decimal.TryParse(Console.ReadLine(), out balance))
+                        break;
+                    else
+                        Console.WriteLine("Ошибка ввода");
+                }
+                                
+                Console.WriteLine(ChangeBalance(input, balance, users));
+                users = GetListFromDBTable();
+            }         
+                       
             break;
+
 
         default:
             break;
     }
 
+}
 
+static string GetUserToString(int Id, List<User> users)
+{
+    foreach (var item in users)
+    {
+        if(item.Id == Id)
+        {
+            return $"Id: {item.Id}\n" +
+            $"Имя: {item.FirstName ?? "no_first_name"} {item.LastName ?? "no_last_name"} {item.PatronomicName ?? "no_patronomic"}\n" +
+            $"Возраст: {item.Age}\n" +
+            $"Роль: {item.Role ?? "no_role"}\n" +
+            $"Аккаунт: {item.Account}\n" +
+            $"Баланс: {item.Balance}\n\n";
+        }
+    }
 
+    return $"Пользователь с Id = {Id} не найден";
+}
+
+static string ChangeBalance(int Id, decimal balance, List<User> users)
+{
+    foreach (var item in users)
+    {
+        if(item.Id == Id)
+        {
+            item.Balance = balance;
+            return $"Баланс обновлен. Новый баланс: {balance}";
+        }
+    }
+    return $"Пользователь с Id = {Id} не найден";
 }
 
 static int GetBiggestId()
@@ -130,6 +205,7 @@ static bool RemoveUserFromDBTable(int Id)
 {
     try
     {
+        bool isRemoved = false;
         using (ApplicationContext db = new ApplicationContext())
         {
             foreach (var item in db.Users)
@@ -138,10 +214,11 @@ static bool RemoveUserFromDBTable(int Id)
                 {
                     db.Users.Remove(item);
                     db.SaveChanges();
+                    isRemoved = true;
                 }
             }
         }
-        return true;
+        return isRemoved;
     }
     catch (Exception)
     {
@@ -191,9 +268,9 @@ static void PrintList(List<User> users)
     foreach (var item in users)
     {
         Console.WriteLine($"Id: {item.Id}\n" +
-            $"Имя: {item.FirstName ?? "no first_name"} {item.LastName ?? "no last_name"} {item.PatronomicName ?? "no patronomic"}\n" +
+            $"Имя: {item.FirstName ?? "no_first_name"} {item.LastName ?? "no_last_name"} {item.PatronomicName ?? "no_patronomic"}\n" +
             $"Возраст: {item.Age}\n" +
-            $"Роль: {item.Role ?? "no role"}\n" +
+            $"Роль: {item.Role ?? "no_role"}\n" +
             $"Аккаунт: {item.Account}\n" +
             $"Баланс: {item.Balance}\n\n");
     }
