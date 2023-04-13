@@ -94,6 +94,7 @@ while (AppIsOn)
             break;
 
         case MainMenu.ChangeBalance:
+            
             break;
 
         default:
